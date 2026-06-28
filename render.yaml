@@ -3,10 +3,10 @@ services:
     name: hal-inventory-system
     env: node
     plan: free
-    # The build command runs on a temporary disk. It builds frontend and backend code.
-    buildCommand: "cd frontend && npm install --legacy-peer-deps --include=dev && npm run build && cd ../backend && npm install --legacy-peer-deps --include=dev && npx prisma generate && npm run build"
-    # The start command runs on the persistent environment. It pushes the schema to the SQLite file, seeds default data, and starts the server.
-    startCommand: "cd backend && npx prisma db push && npm run prisma:seed && npm run start"
+    # The build command runs on a temporary disk. It builds frontend and backend code, pushes database schema, and seeds data.
+    buildCommand: "cd frontend && npm install --legacy-peer-deps --include=dev && npm run build && cd ../backend && npm install --legacy-peer-deps --include=dev && npx prisma generate && npx prisma db push && npm run prisma:seed && npm run build"
+    # The start command runs on the persistent environment. It starts the node server directly.
+    startCommand: "cd backend && npm run start"
     envVars:
       - key: NODE_VERSION
         value: "20"
