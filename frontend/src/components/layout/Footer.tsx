@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: Footer component -- version info and HAL branding

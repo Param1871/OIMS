@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: Custom hook -- syncs state with localStorage (theme, sidebar preference, etc.)

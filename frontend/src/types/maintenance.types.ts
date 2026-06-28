@@ -1,0 +1,1 @@
+﻿// TODO Phase 8: TypeScript types -- MaintenanceLog, CalibrationRecord, EquipmentStatus

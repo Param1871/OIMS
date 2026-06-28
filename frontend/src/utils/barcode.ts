@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: Utility -- barcode/QR code generation and scanning helpers

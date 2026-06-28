@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: QRCodeDisplay component -- renders QR code for item tracking

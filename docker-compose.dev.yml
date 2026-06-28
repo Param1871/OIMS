@@ -1,0 +1,7 @@
+﻿# TODO Phase 3: Development docker-compose override
+# Hot-reload volumes and dev environment settings
+
+version: '3.9'
+
+services:
+  # TODO: Dev overrides for backend and frontend with volume mounts

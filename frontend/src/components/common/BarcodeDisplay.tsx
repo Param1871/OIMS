@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: BarcodeDisplay component -- renders barcode image from inventory item code

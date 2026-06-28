@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: SearchBar component -- debounced search input with clear button

@@ -1,0 +1,1254 @@
+// =============================================================================
+// HAL OIMS — Prisma Schema
+// Phase 2: Complete Normalized Database Schema
+// PostgreSQL 16 | Prisma ORM v5
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// Enum String removed for SQLite
+
+// =============================================================================
+// CORE USER MANAGEMENT
+// =============================================================================
+
+/// System user account — linked 1-to-1 with Employee
+model User {
+  id                  String     @id @default(uuid())
+  employeeCode        String?    @unique
+  username            String     @unique 
+  email               String     @unique 
+  passwordHash        String
+  firstName           String     
+  lastName            String     
+  phone               String?    
+  avatar              String?
+  status String @default("ACTIVE")
+  roleId              String
+
+  // Auth & session metadata
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  passwordChangedAt   DateTime?
+  resetToken          String?    @unique
+  resetTokenExpiry    DateTime?
+  forcePasswordChange Boolean    @default(false)
+  sessionTimeoutMins  Int        @default(480)
+
+  // Relations
+  role                Role                @relation(fields: [roleId], references: [id])
+  employee            Employee?
+  auditLogs           AuditLog[]
+  userNotifications   UserNotification[]
+  createdPRs          PurchaseRequest[]   @relation("PRCreatedBy")
+  approvedPRs         PurchaseRequest[]   @relation("PRApprovedBy")
+  createdPOs          PurchaseOrder[]     @relation("POCreatedBy")
+  grnReceived         GoodsReceivedNote[] @relation("GRNReceivedBy")
+  stockTransactions   StockTransaction[]  @relation("TxPerformedBy")
+  assignedTasks       Task[]              @relation("TaskAssignee")
+  createdTasks        Task[]              @relation("TaskAssigner")
+  taskMessages        TaskMessage[]
+
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  deletedAt           DateTime?
+
+  @@index([username])
+  @@index([email])
+  @@index([roleId])
+  @@index([status])
+  @@map("users")
+}
+
+/// Role entity — maps to a String enum value
+model Role {
+  id          String          @id @default(uuid())
+  name        String        @unique
+  displayName String          
+  description String?
+  isSystem    Boolean         @default(true)   // system roles cannot be deleted
+
+  users       User[]
+  permissions RolePermission[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@map("roles")
+}
+
+/// Granular permission definition: module + action pair
+model Permission {
+  id          String           @id @default(uuid())
+  module      String              // e.g. "inventory", "purchase"
+  action      String              // e.g. "create", "read", "approve"
+  displayName String           
+  description String?
+
+  roles       RolePermission[]
+
+  createdAt   DateTime         @default(now())
+
+  @@unique([module, action])
+  @@index([module])
+  @@map("permissions")
+}
+
+/// Junction table: Role ↔ Permission (many-to-many)
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime   @default(now())
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+// =============================================================================
+// EMPLOYEE MANAGEMENT
+// =============================================================================
+
+/// HAL division / department
+model Department {
+  id          String     @id @default(uuid())
+  code        String     @unique 
+  name        String     
+  description String?
+  headId      String?    // employee who heads this department
+
+  employees   Employee[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  @@index([code])
+  @@map("departments")
+}
+
+/// Job designation / grade
+model Designation {
+  id          String     @id @default(uuid())
+  code        String     @unique 
+  name        String     
+  grade       String?    
+  level       Int?       // seniority level 1–10
+
+  employees   Employee[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@map("designations")
+}
+
+/// Employee profile — 1-to-1 with User
+model Employee {
+  id              String      @id @default(uuid())
+  employeeCode    String      @unique 
+  userId          String      @unique
+  departmentId    String
+  designationId   String
+
+  firstName       String      
+  lastName        String      
+  email           String      @unique 
+  phone           String?     
+  dateOfJoining   DateTime
+  dateOfBirth     DateTime?
+  gender          String?     
+  address         String?
+  city            String?     
+  state           String?     
+  pincode         String?     
+  emergencyContact String?
+  isActive        Boolean     @default(true)
+
+  // Relations
+  user            User        @relation(fields: [userId], references: [id])
+  department      Department  @relation(fields: [departmentId], references: [id])
+  designation     Designation @relation(fields: [designationId], references: [id])
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  @@index([employeeCode])
+  @@index([departmentId])
+  @@index([designationId])
+  @@map("employees")
+}
+
+// =============================================================================
+// WAREHOUSE MANAGEMENT
+// =============================================================================
+
+/// Physical warehouse or storage facility
+model Warehouse {
+  id          String        @id @default(uuid())
+  code        String        @unique 
+  name        String        
+  type String @default("MAIN")
+  address     String?
+  city        String?       
+  state       String?       
+  pincode     String?       
+  managerId   String?
+  totalArea   Float?        // square meters
+  isActive    Boolean       @default(true)
+
+  zones             Zone[]
+  stockLocations    StockLocation[]
+  transfersFrom     StockTransaction[] @relation("TxFromWarehouse")
+  transfersTo       StockTransaction[] @relation("TxToWarehouse")
+  grnReceived       GoodsReceivedNote[] @relation("GRNWarehouse")
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  @@index([code])
+  @@map("warehouses")
+}
+
+/// Zone inside a warehouse (e.g. Zone-A, Zone-B)
+model Zone {
+  id          String     @id @default(uuid())
+  warehouseId String
+  code        String     
+  name        String     
+  description String?
+
+  warehouse   Warehouse  @relation(fields: [warehouseId], references: [id])
+  racks       Rack[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId])
+  @@map("zones")
+}
+
+/// Rack inside a zone
+model Rack {
+  id          String   @id @default(uuid())
+  zoneId      String
+  code        String   
+  name        String   
+  maxCapacity Float?   // kg
+
+  zone        Zone     @relation(fields: [zoneId], references: [id])
+  shelves     Shelf[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([zoneId, code])
+  @@index([zoneId])
+  @@map("racks")
+}
+
+/// Shelf inside a rack
+model Shelf {
+  id        String   @id @default(uuid())
+  rackId    String
+  code      String   
+  name      String   
+
+  rack      Rack     @relation(fields: [rackId], references: [id])
+  bins      Bin[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rackId, code])
+  @@index([rackId])
+  @@map("shelves")
+}
+
+/// Bin inside a shelf — the most granular storage unit
+model Bin {
+  id         String         @id @default(uuid())
+  shelfId    String
+  code       String         
+  name       String         
+  maxWeight  Float?         // kg
+  maxVolume  Float?         // cubic cm
+
+  shelf      Shelf          @relation(fields: [shelfId], references: [id])
+  stockLocations StockLocation[]
+
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@unique([shelfId, code])
+  @@index([shelfId])
+  @@map("bins")
+}
+
+// =============================================================================
+// CATEGORY MANAGEMENT
+// =============================================================================
+
+/// Top-level item category (e.g. Aero Engine Parts, Hydraulic Components)
+model Category {
+  id            String        @id @default(uuid())
+  code          String        @unique 
+  name          String        
+  description   String?
+  isActive      Boolean       @default(true)
+
+  subcategories Subcategory[]
+  items         InventoryItem[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  @@index([code])
+  @@map("categories")
+}
+
+/// Subcategory under a category (e.g. Turbine Blades under Aero Engine Parts)
+model Subcategory {
+  id          String        @id @default(uuid())
+  categoryId  String
+  code        String        @unique 
+  name        String        
+  description String?
+  isActive    Boolean       @default(true)
+
+  category    Category      @relation(fields: [categoryId], references: [id])
+  items       InventoryItem[]
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  @@index([categoryId])
+  @@index([code])
+  @@map("subcategories")
+}
+
+// =============================================================================
+// MANUFACTURER & VENDOR
+// =============================================================================
+
+/// Equipment / component manufacturer
+model Manufacturer {
+  id          String          @id @default(uuid())
+  code        String          @unique 
+  name        String          
+  country String @default("INDIA")
+  website     String?
+  phone       String?
+
+  items       InventoryItem[]
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
+
+  @@index([code])
+  @@map("manufacturers")
+}
+
+/// Supplier / vendor profile
+model Vendor {
+  id              String       @id @default(uuid())
+  vendorCode      String       @unique 
+  name            String       
+  gstNumber       String?      @unique 
+  panNumber       String?      
+  address         String?
+  city            String?      
+  state           String?      
+  pincode         String?      
+  country         String       @default("India") 
+  phone           String?      
+  alternatePhone  String?      
+  email           String?      
+  website         String?
+  bankName        String?      
+  bankAccount     String?      
+  ifscCode        String?      
+  paymentTerms    String?         // "Net 30", "Net 45", "Advance"
+  creditLimitInr  Float?
+  currency        String       @default("INR") 
+  status String @default("ACTIVE")
+  performanceRating Float      @default(0)       // 0.0 – 5.0
+  isApprovedVendor Boolean     @default(false)
+  notes           String?
+
+  contacts        VendorContact[]
+  purchaseOrders  PurchaseOrder[]
+  prItems         PurchaseRequestItem[]
+  items           InventoryItem[]
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@index([vendorCode])
+  @@index([gstNumber])
+  @@index([status])
+  @@map("vendors")
+}
+
+/// Contact person at a vendor
+model VendorContact {
+  id          String   @id @default(uuid())
+  vendorId    String
+  name        String   
+  designation String?  
+  email       String?  
+  phone       String?  
+  isPrimary   Boolean  @default(false)
+
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([vendorId])
+  @@map("vendor_contacts")
+}
+
+// =============================================================================
+// INVENTORY ITEMS
+// =============================================================================
+
+/// Master inventory item record
+model InventoryItem {
+  id                   String          @id @default(uuid())
+  itemCode             String          @unique 
+  partNumber           String?         @unique 
+  name                 String          
+  description          String?
+  technicalSpec        String?         // detailed technical specification
+
+  // Classification
+  categoryId           String
+  subcategoryId        String?
+  manufacturerId       String?
+  vendorId             String?         // preferred vendor
+  countryOfOrigin String @default("INDIA")
+  hsCode               String?           // Harmonized System tariff code
+
+  // Unit & UOM
+  unit String   @default("EACH")
+
+  // Quantity fields
+  currentQuantity      Float           @default(0)
+  reservedQuantity     Float           @default(0)
+  availableQuantity    Float           @default(0)   // updated by trigger: current - reserved
+
+  // Threshold levels
+  minimumStock         Float           @default(0)
+  maximumStock         Float           @default(0)
+  reorderLevel         Float           @default(0)
+  reorderQuantity      Float           @default(0)
+
+  // Pricing
+  purchaseCostInr      Float           @default(0)
+  sellingCostInr       Float           @default(0)
+  gstRatePercent       Float           @default(18)
+  totalStockValueInr   Float           @default(0)   // currentQuantity × purchaseCostInr
+
+  // Tracking flags
+  isBatchTracked       Boolean         @default(false)
+  isSerialTracked      Boolean         @default(false)
+  isExpiryTracked      Boolean         @default(false)
+  isCalibrationRequired Boolean        @default(false)
+  isImported           Boolean         @default(false)
+  isHazardous          Boolean         @default(false)
+  isCritical           Boolean         @default(false)  // cannot run out
+
+  // Calibration
+  calibrationDueDate   DateTime?
+  calibrationIntervalDays Int?
+
+  // Expiry & warranty
+  expiryDate           DateTime?
+  warrantyMonths       Int?
+
+  // Identifiers & media
+  imageUrl             String?
+  barcodeValue         String?         @unique 
+  qrCodeValue          String?         @unique 
+
+  // Status & remarks
+  status String      @default("ACTIVE")
+  remarks              String?
+
+  // Relations
+  category             Category        @relation(fields: [categoryId], references: [id])
+  subcategory          Subcategory?    @relation(fields: [subcategoryId], references: [id])
+  manufacturer         Manufacturer?   @relation(fields: [manufacturerId], references: [id])
+  vendor               Vendor?         @relation(fields: [vendorId], references: [id])
+  batches              ItemBatch[]
+  serials              ItemSerial[]
+  attachments          ItemAttachment[]
+  stockLocations       StockLocation[]
+  transactions         StockTransaction[]
+  prItems              PurchaseRequestItem[]
+  poItems              PurchaseOrderItem[]
+  grnItems             GRNItem[]
+  workOrderMaterials   WorkOrderMaterial[]
+  materialIssueItems   MaterialIssueItem[]
+
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  deletedAt            DateTime?
+
+  @@index([itemCode])
+  @@index([partNumber])
+  @@index([categoryId])
+  @@index([subcategoryId])
+  @@index([manufacturerId])
+  @@index([vendorId])
+  @@index([name])
+  @@index([status])
+  @@index([currentQuantity])
+  @@map("inventory_items")
+}
+
+/// Batch-level tracking for an inventory item
+model ItemBatch {
+  id                String        @id @default(uuid())
+  itemId            String
+  batchNumber       String        
+  manufacturingDate DateTime?
+  expiryDate        DateTime?
+  quantity          Float         @default(0)
+  receivedDate      DateTime?
+  grnNumber         String?
+  notes             String?
+
+  item              InventoryItem @relation(fields: [itemId], references: [id])
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([itemId, batchNumber])
+  @@index([itemId])
+  @@index([batchNumber])
+  @@index([expiryDate])
+  @@map("item_batches")
+}
+
+/// Serial-number-level tracking for an inventory item
+model ItemSerial {
+  id           String        @id @default(uuid())
+  itemId       String
+  serialNumber String        @unique 
+  status       String        @default("IN_STOCK") // IN_STOCK | ISSUED | RETURNED | SCRAPPED | LOST
+  warehouseId  String?
+  binId        String?
+  issuedTo     String?
+  issuedDate   DateTime?
+  returnedDate DateTime?
+  notes        String?
+
+  item         InventoryItem @relation(fields: [itemId], references: [id])
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([itemId])
+  @@index([serialNumber])
+  @@index([status])
+  @@map("item_serials")
+}
+
+/// File attachment (image / document / certificate) for an inventory item
+model ItemAttachment {
+  id          String        @id @default(uuid())
+  itemId      String
+  fileName    String        
+  fileType    String        
+  fileSizeKb  Int
+  filePath    String
+  description String?
+  uploadedBy  String?
+
+  item        InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime      @default(now())
+
+  @@index([itemId])
+  @@map("item_attachments")
+}
+
+/// Item → Warehouse → Bin location mapping (multi-location support)
+model StockLocation {
+  id          String        @id @default(uuid())
+  itemId      String
+  warehouseId String
+  binId       String?
+  quantity    Float         @default(0)
+  isPrimary   Boolean       @default(false)
+
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  warehouse   Warehouse     @relation(fields: [warehouseId], references: [id])
+  bin         Bin?          @relation(fields: [binId], references: [id])
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([itemId, warehouseId, binId])
+  @@index([itemId])
+  @@index([warehouseId])
+  @@map("stock_locations")
+}
+
+// =============================================================================
+// PURCHASE MANAGEMENT
+// =============================================================================
+
+/// Purchase Request (PR) — internal demand from any department
+model PurchaseRequest {
+  id             String                @id @default(uuid())
+  prNumber       String                @unique 
+  title          String                
+  requestedById  String
+  departmentId   String?
+  status String @default("DRAFT")
+  priority String         @default("NORMAL")
+  requiredByDate DateTime?
+  approvedById   String?
+  approvedAt     DateTime?
+  rejectedAt     DateTime?
+  rejectionReason String?
+  notes          String?
+
+  requestedBy    User                  @relation("PRCreatedBy", fields: [requestedById], references: [id])
+  approvedBy     User?                 @relation("PRApprovedBy", fields: [approvedById], references: [id])
+  items          PurchaseRequestItem[]
+  purchaseOrders PurchaseOrder[]
+
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([prNumber])
+  @@index([status])
+  @@index([requestedById])
+  @@index([departmentId])
+  @@map("purchase_requests")
+}
+
+/// Line item on a Purchase Request
+model PurchaseRequestItem {
+  id                String          @id @default(uuid())
+  purchaseRequestId String
+  itemId            String
+  vendorId          String?
+  requiredQuantity  Float
+  estimatedCostInr  Float?
+  unit String   @default("EACH")
+  specification     String?
+
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  item              InventoryItem   @relation(fields: [itemId], references: [id])
+  vendor            Vendor?         @relation(fields: [vendorId], references: [id])
+
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([purchaseRequestId])
+  @@index([itemId])
+  @@map("purchase_request_items")
+}
+
+/// Purchase Order (PO) — formal order sent to vendor
+model PurchaseOrder {
+  id                String              @id @default(uuid())
+  poNumber          String              @unique 
+  purchaseRequestId String?
+  vendorId          String
+  createdById       String
+  status String @default("DRAFT")
+  orderDate         DateTime            @default(now())
+  expectedDate      DateTime?
+  deliveryAddress   String?
+  paymentTerms      String?             
+  currency          String              @default("INR") 
+  subTotalInr       Float               @default(0)
+  taxAmountInr      Float               @default(0)
+  freightCharges    Float               @default(0)
+  totalAmountInr    Float               @default(0)
+  notes             String?
+  termsConditions   String?
+
+  purchaseRequest   PurchaseRequest?    @relation(fields: [purchaseRequestId], references: [id])
+  vendor            Vendor              @relation(fields: [vendorId], references: [id])
+  createdBy         User                @relation("POCreatedBy", fields: [createdById], references: [id])
+  items             PurchaseOrderItem[]
+  grns              GoodsReceivedNote[]
+  invoices          Invoice[]
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([poNumber])
+  @@index([vendorId])
+  @@index([status])
+  @@index([orderDate])
+  @@map("purchase_orders")
+}
+
+/// Line item on a Purchase Order
+model PurchaseOrderItem {
+  id               String        @id @default(uuid())
+  purchaseOrderId  String
+  itemId           String
+  orderedQuantity  Float
+  receivedQuantity Float         @default(0)
+  pendingQuantity  Float         @default(0)
+  unitCostInr      Float
+  taxRatePercent   Float         @default(18)
+  taxAmountInr     Float         @default(0)
+  totalCostInr     Float         @default(0)
+  unit String @default("EACH")
+  specification    String?
+  deliveryDate     DateTime?
+
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  item             InventoryItem @relation(fields: [itemId], references: [id])
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([purchaseOrderId])
+  @@index([itemId])
+  @@map("purchase_order_items")
+}
+
+/// Goods Received Note (GRN) — records physical receipt of goods
+model GoodsReceivedNote {
+  id               String        @id @default(uuid())
+  grnNumber        String        @unique 
+  purchaseOrderId  String
+  warehouseId      String?
+  status String     @default("DRAFT")
+  receivedDate     DateTime      @default(now())
+  receivedById     String?
+  vehicleNumber    String?       
+  challanNumber    String?       
+  challanDate      DateTime?
+  qualityCheckedBy String?
+  qualityCheckedAt DateTime?
+  qualityNotes     String?
+  notes            String?
+
+  purchaseOrder    PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  receivedBy       User?         @relation("GRNReceivedBy", fields: [receivedById], references: [id])
+  warehouse        Warehouse?    @relation("GRNWarehouse", fields: [warehouseId], references: [id])
+  items            GRNItem[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([grnNumber])
+  @@index([purchaseOrderId])
+  @@index([status])
+  @@map("goods_received_notes")
+}
+
+/// Line item on a GRN
+model GRNItem {
+  id           String            @id @default(uuid())
+  grnId        String
+  itemId       String
+  orderedQty   Float
+  receivedQty  Float
+  rejectedQty  Float             @default(0)
+  acceptedQty  Float             @default(0)
+  batchNumber  String?
+  expiryDate   DateTime?
+  unitCostInr  Float
+  totalCostInr Float             @default(0)
+  remarks      String?
+
+  grn          GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  item         InventoryItem     @relation(fields: [itemId], references: [id])
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([grnId])
+  @@index([itemId])
+  @@map("grn_items")
+}
+
+/// Vendor invoice — uploaded PDF + financial data
+model Invoice {
+  id              String        @id @default(uuid())
+  invoiceNumber   String        
+  purchaseOrderId String
+  vendorId        String?
+  invoiceDate     DateTime
+  dueDate         DateTime?
+  amountInr       Float
+  taxAmountInr    Float         @default(0)
+  totalAmountInr  Float
+  currency        String        @default("INR") 
+  status String @default("PENDING")
+  paidDate        DateTime?
+  filePath        String?
+  notes           String?
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([purchaseOrderId])
+  @@index([invoiceNumber])
+  @@index([status])
+  @@map("invoices")
+}
+
+// =============================================================================
+// STOCK TRANSACTIONS
+// =============================================================================
+
+/// Immutable ledger of every stock movement — never deleted
+model StockTransaction {
+  id                String          @id @default(uuid())
+  transactionNumber String          @unique 
+  type String
+  itemId            String
+  fromWarehouseId   String?
+  toWarehouseId     String?
+  fromBinId         String?
+  toBinId           String?
+  quantity          Float
+  balanceBefore     Float           // snapshot before this transaction
+  balanceAfter      Float           // snapshot after this transaction
+  unitCostInr       Float?
+  totalCostInr      Float?
+  batchNumber       String?
+  serialNumber      String?
+  referenceType     String?         // "GRN" | "PO" | "WORK_ORDER" | "MANUAL" | "TRANSFER"
+  referenceId       String?
+  performedById     String
+  reason            String?
+  remarks           String?
+
+  item              InventoryItem   @relation(fields: [itemId], references: [id])
+  fromWarehouse     Warehouse?      @relation("TxFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse       Warehouse?      @relation("TxToWarehouse", fields: [toWarehouseId], references: [id])
+  performedBy       User            @relation("TxPerformedBy", fields: [performedById], references: [id])
+
+  createdAt         DateTime        @default(now())
+
+  @@index([transactionNumber])
+  @@index([itemId])
+  @@index([type])
+  @@index([performedById])
+  @@index([createdAt])
+  @@index([referenceType, referenceId])
+  @@map("stock_transactions")
+}
+
+// =============================================================================
+// PRODUCTION MODULE
+// =============================================================================
+
+/// Work Order — production job card
+model WorkOrder {
+  id              String          @id @default(uuid())
+  woNumber        String          @unique 
+  title           String          
+  description     String?
+  departmentId    String?
+  productCode     String?
+  productName     String?
+  plannedQuantity Float?
+  actualQuantity  Float?
+  plannedStart    DateTime?
+  plannedEnd      DateTime?
+  actualStart     DateTime?
+  actualEnd       DateTime?
+  status String @default("DRAFT")
+  priority String   @default("NORMAL")
+  assignedToId    String?
+  notes           String?
+
+  materials       WorkOrderMaterial[]
+  materialIssues  MaterialIssue[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([woNumber])
+  @@index([status])
+  @@index([departmentId])
+  @@map("work_orders")
+}
+
+/// Bill of materials required for a Work Order
+model WorkOrderMaterial {
+  id           String        @id @default(uuid())
+  workOrderId  String
+  itemId       String
+  requiredQty  Float
+  issuedQty    Float         @default(0)
+  returnedQty  Float         @default(0)
+  unit String @default("EACH")
+  remarks      String?
+
+  workOrder    WorkOrder     @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  item         InventoryItem @relation(fields: [itemId], references: [id])
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([workOrderId, itemId])
+  @@index([workOrderId])
+  @@index([itemId])
+  @@map("work_order_materials")
+}
+
+/// Material Issue voucher — records items issued from stores to production
+model MaterialIssue {
+  id           String            @id @default(uuid())
+  issueNumber  String            @unique 
+  workOrderId  String?
+  issuedById   String?
+  receivedById String?
+  departmentId String?
+  issueDate    DateTime          @default(now())
+  status       String            @default("ISSUED")
+  // ISSUED | PARTIALLY_RETURNED | FULLY_RETURNED | CLOSED
+  notes        String?
+
+  workOrder    WorkOrder?        @relation(fields: [workOrderId], references: [id])
+  items        MaterialIssueItem[]
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([issueNumber])
+  @@index([workOrderId])
+  @@map("material_issues")
+}
+
+/// Line item on a Material Issue
+model MaterialIssueItem {
+  id              String        @id @default(uuid())
+  materialIssueId String
+  itemId          String
+  issuedQty       Float
+  returnedQty     Float         @default(0)
+  unit String @default("EACH")
+  batchNumber     String?
+  serialNumber    String?
+  remarks         String?
+
+  materialIssue   MaterialIssue @relation(fields: [materialIssueId], references: [id], onDelete: Cascade)
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([materialIssueId])
+  @@index([itemId])
+  @@map("material_issue_items")
+}
+
+// =============================================================================
+// MAINTENANCE MODULE
+// =============================================================================
+
+/// Preventive / corrective maintenance schedule
+model MaintenanceSchedule {
+  id              String            @id @default(uuid())
+  scheduleNumber  String            @unique 
+  title           String            
+  description     String?
+  assetCode       String?           
+  assetName       String?           
+  assetType       String?             // MACHINE | TOOL | INSTRUMENT | VEHICLE
+  departmentId    String?
+  assignedToId    String?
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  nextDueDate     DateTime?
+  frequencyDays   Int?
+  estimatedHours  Float?
+  actualHours     Float?
+  status String @default("SCHEDULED")
+  priority String     @default("NORMAL")
+  notes           String?
+
+  calibrationRecords CalibrationRecord[]
+  repairHistory      RepairHistory[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([scheduleNumber])
+  @@index([status])
+  @@index([scheduledDate])
+  @@index([assetCode])
+  @@map("maintenance_schedules")
+}
+
+/// Calibration record for measuring instruments & equipment
+model CalibrationRecord {
+  id                  String              @id @default(uuid())
+  recordNumber        String              @unique 
+  maintenanceId       String?
+  instrumentCode      String              
+  instrumentName      String              
+  make                String?
+  model               String?
+  serialNo            String?
+  calibratedDate      DateTime
+  nextCalibrationDate DateTime
+  calibratedBy        String?
+  calibratedByOrg     String?             // external lab name
+  referenceStandard   String?
+  result String   @default("PASS")
+  certificatePath     String?
+  remarks             String?
+
+  maintenance         MaintenanceSchedule? @relation(fields: [maintenanceId], references: [id])
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([recordNumber])
+  @@index([instrumentCode])
+  @@index([nextCalibrationDate])
+  @@map("calibration_records")
+}
+
+/// Repair history for machines and equipment
+model RepairHistory {
+  id            String               @id @default(uuid())
+  repairNumber  String               @unique 
+  maintenanceId String?
+  assetCode     String?              
+  assetName     String?              
+  repairDate    DateTime
+  completedDate DateTime?
+  repairedBy    String?
+  externalVendor String?
+  costInr       Float?
+  description   String
+  rootCause     String?
+  actionTaken   String?
+  partsUsed     String?
+  result        String?              // REPAIRED | REPLACED | SCRAPPED | PENDING
+
+  maintenance   MaintenanceSchedule? @relation(fields: [maintenanceId], references: [id])
+
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([repairNumber])
+  @@index([assetCode])
+  @@map("repair_history")
+}
+
+// =============================================================================
+// NOTIFICATIONS
+// =============================================================================
+
+/// System notification event
+model Notification {
+  id           String               @id @default(uuid())
+  type String
+  title        String               
+  message      String
+  entityType   String?                // "inventory_item" | "purchase_order"
+  entityId     String?
+  severity String @default("INFO")
+  isSystem     Boolean              @default(false)
+
+  userNotifications UserNotification[]
+
+  createdAt    DateTime             @default(now())
+
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// User-level notification read state
+model UserNotification {
+  id             String       @id @default(uuid())
+  userId         String
+  notificationId String
+  isRead         Boolean      @default(false)
+  readAt         DateTime?
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, notificationId])
+  @@index([userId])
+  @@index([isRead])
+  @@map("user_notifications")
+}
+
+// =============================================================================
+// AUDIT LOGS
+// =============================================================================
+
+/// Immutable audit trail — never deleted or updated
+model AuditLog {
+  id          String      @id @default(uuid())
+  userId      String?
+  action String
+  module      String      
+  entityType  String?     
+  entityId    String?
+  description String
+  oldValues   String?       // snapshot before change
+  newValues   String?       // snapshot after change
+  ipAddress   String?     
+  userAgent   String?
+  sessionId   String?
+
+  user        User?       @relation(fields: [userId], references: [id])
+
+  createdAt   DateTime    @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([module])
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// =============================================================================
+// SYSTEM SETTINGS
+// =============================================================================
+
+/// Key-value configuration store
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique 
+  value       String
+  dataType    String   @default("string")   // string | number | boolean | json
+  description String?
+  isPublic    Boolean  @default(false)   // visible without auth
+  category    String   @default("general") 
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([key])
+  @@index([category])
+  @@map("settings")
+}
+
+// =============================================================================
+// TASK MANAGEMENT
+// =============================================================================
+
+/// Task assigned to an employee
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  status      String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  priority    String    @default("NORMAL")  // LOW, NORMAL, HIGH, URGENT
+  dueDate     DateTime?
+
+  assigneeId  String
+  assignerId  String
+
+  assignee    User      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assigner    User      @relation("TaskAssigner", fields: [assignerId], references: [id])
+  messages    TaskMessage[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([assigneeId])
+  @@index([assignerId])
+  @@index([status])
+  @@map("tasks")
+}
+
+/// Message/Comment on a task
+model TaskMessage {
+  id        String   @id @default(uuid())
+  taskId    String
+  userId    String
+  content   String
+  
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_messages")
+}

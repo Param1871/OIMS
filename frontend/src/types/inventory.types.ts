@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: TypeScript types -- InventoryItem, Category, StockLevel, BarcodeData

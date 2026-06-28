@@ -1,0 +1,1 @@
+﻿// TODO Phase 5: TypeScript types -- Employee, Department, Designation, EmployeeStatus

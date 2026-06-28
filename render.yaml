@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: hal-inventory-system
+    env: node
+    plan: free
+    # The build command runs on a temporary disk. It builds frontend and backend code.
+    buildCommand: "cd frontend && npm install && npm run build && cd ../backend && npm install && npx prisma generate && npm run build"
+    # The start command runs on the persistent environment. It pushes the schema to the SQLite file, seeds default data, and starts the server.
+    startCommand: "cd backend && npx prisma db push && npm run prisma:seed && npm run start"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:/var/data/prod.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: CORS_ORIGIN
+        value: "*"
+    # Attach a persistent disk to securely store the SQLite database across restarts
+    disk:
+      name: database_storage
+      mountPath: /var/data
+      sizeGB: 1
