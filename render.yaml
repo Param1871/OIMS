@@ -11,15 +11,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
-        value: file:/var/data/prod.db
+        value: file:./dev.db
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 8h
       - key: CORS_ORIGIN
         value: "*"
-    # Attach a persistent disk to securely store the SQLite database across restarts
-    disk:
-      name: database_storage
-      mountPath: /var/data
-      sizeGB: 1
