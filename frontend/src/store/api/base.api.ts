@@ -1,10 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://seven-kiwis-invent.loca.lt/api/v1',
+  baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
-    'Bypass-Tunnel-Reminder': 'true',
   },
 });
 
