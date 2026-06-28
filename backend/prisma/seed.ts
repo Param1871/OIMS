@@ -114,39 +114,44 @@ async function main() {
 
   // ─── 5. USERS & EMPLOYEES ──────────────────────────────────────────────────
   console.log('👤 Seeding users and employees...');
-  const defaultPassword = await bcrypt.hash('HAL@2024!', 12);
+  const adminPassword = await bcrypt.hash('HAL@2024!', 12);
+  const employeePassword = await bcrypt.hash('Employee@2024!', 12);
 
   const usersData = [
     { username: 'admin', email: 'admin@hal-oims.local', firstName: 'System', lastName: 'Administrator',
       role: 'SUPER_ADMIN', empCode: 'HAL-EMP-001', deptCode: 'IT-01', desigCode: 'GM' },
-    { username: 'inv.manager', email: 'inv.manager@hal-oims.local', firstName: 'Rajesh', lastName: 'Kumar',
+    { username: 'rajesh.kumar', email: 'inv.manager@hal-oims.local', firstName: 'Rajesh', lastName: 'Kumar',
       role: 'INVENTORY_MANAGER', empCode: 'HAL-EMP-002', deptCode: 'STORE-01', desigCode: 'MGR' },
-    { username: 'storekeeper1', email: 'sk1@hal-oims.local', firstName: 'Suresh', lastName: 'Nair',
+    { username: 'suresh.nair', email: 'sk1@hal-oims.local', firstName: 'Suresh', lastName: 'Nair',
       role: 'STORE_KEEPER', empCode: 'HAL-EMP-003', deptCode: 'STORE-01', desigCode: 'STORE_KPR' },
-    { username: 'purchase.head', email: 'purchase@hal-oims.local', firstName: 'Priya', lastName: 'Sharma',
+    { username: 'priya.sharma', email: 'purchase@hal-oims.local', firstName: 'Priya', lastName: 'Sharma',
       role: 'PURCHASE_DEPARTMENT', empCode: 'HAL-EMP-004', deptCode: 'PURCH-01', desigCode: 'SMGR' },
-    { username: 'prod.engineer', email: 'prod@hal-oims.local', firstName: 'Vikram', lastName: 'Singh',
+    { username: 'vikram.singh', email: 'prod@hal-oims.local', firstName: 'Vikram', lastName: 'Singh',
       role: 'PRODUCTION_DEPARTMENT', empCode: 'HAL-EMP-005', deptCode: 'PROD-01', desigCode: 'SENGG' },
-    { username: 'qa.officer', email: 'qa@hal-oims.local', firstName: 'Anitha', lastName: 'Reddy',
+    { username: 'anitha.reddy', email: 'qa@hal-oims.local', firstName: 'Anitha', lastName: 'Reddy',
       role: 'QUALITY_DEPARTMENT', empCode: 'HAL-EMP-006', deptCode: 'QUAL-01', desigCode: 'ENGG' },
-    { username: 'maint.supv', email: 'maint@hal-oims.local', firstName: 'Ravi', lastName: 'Pillai',
+    { username: 'ravi.pillai', email: 'maint@hal-oims.local', firstName: 'Ravi', lastName: 'Pillai',
       role: 'MAINTENANCE_DEPARTMENT', empCode: 'HAL-EMP-007', deptCode: 'MAINT-01', desigCode: 'SUPV' },
-    { username: 'finance.mgr', email: 'finance@hal-oims.local', firstName: 'Meera', lastName: 'Iyer',
+    { username: 'meera.iyer', email: 'finance@hal-oims.local', firstName: 'Meera', lastName: 'Iyer',
       role: 'FINANCE_DEPARTMENT', empCode: 'HAL-EMP-008', deptCode: 'FIN-01', desigCode: 'MGR' },
-    { username: 'auditor1', email: 'auditor@hal-oims.local', firstName: 'Sanjay', lastName: 'Gupta',
+    { username: 'sanjay.gupta', email: 'auditor@hal-oims.local', firstName: 'Sanjay', lastName: 'Gupta',
       role: 'AUDITOR', empCode: 'HAL-EMP-009', deptCode: 'FIN-01', desigCode: 'SENGG' },
-    { username: 'readonly1', email: 'readonly@hal-oims.local', firstName: 'Deepa', lastName: 'Menon',
+    { username: 'deepa.menon', email: 'readonly@hal-oims.local', firstName: 'Deepa', lastName: 'Menon',
       role: 'READ_ONLY', empCode: 'HAL-EMP-010', deptCode: 'PROD-02', desigCode: 'TECH' },
   ];
 
   for (const u of usersData) {
+    const isSpecialAdmin = u.username === 'admin';
+    const pwdHash = isSpecialAdmin ? adminPassword : employeePassword;
     const user = await prisma.user.upsert({
       where: { username: u.username },
-      update: {},
+      update: {
+        passwordHash: pwdHash,
+      },
       create: {
         username: u.username,
         email: u.email,
-        passwordHash: defaultPassword,
+        passwordHash: pwdHash,
         firstName: u.firstName,
         lastName: u.lastName,
         employeeCode: u.empCode,
