@@ -8,6 +8,8 @@ services:
     # The start command runs on the persistent environment. It pushes the schema to the SQLite file, seeds default data, and starts the server.
     startCommand: "cd backend && npx prisma db push && npm run prisma:seed && npm run start"
     envVars:
+      - key: NODE_VERSION
+        value: "20"
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
