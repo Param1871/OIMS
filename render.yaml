@@ -18,5 +18,5 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 8h
-      - key: CORS_ORIGIN
+      - key: CORS_ORIGINS
         value: "*"

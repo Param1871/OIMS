@@ -48,7 +48,7 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl) in dev
       if (!origin || env.NODE_ENV === 'development') return callback(null, true);
-      if (env.CORS_ORIGINS.includes(origin)) return callback(null, true);
+      if (env.CORS_ORIGINS.includes('*') || env.CORS_ORIGINS.includes(origin)) return callback(null, true);
       callback(new Error(`CORS policy: ${origin} not allowed`));
     },
     credentials: true,
